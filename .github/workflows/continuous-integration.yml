@@ -78,6 +78,11 @@ on:
         type: string
         required: false
         default: "{}"
+      apt-packages:
+        description: "Space-separated Ubuntu packages installed with apt-get before the test and mutation-test jobs run (e.g. \"imagemagick\" for a CLI the tests shell out to). Empty = none."
+        type: string
+        required: false
+        default: ""
     secrets:
       CODECOV_TOKEN:
         required: false
@@ -187,6 +192,17 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: ${{ (matrix.php == inputs.coverage-php-version && matrix.dependencies == 'locked') && 'pcov' || 'none' }}
 
+      # System tools the tests shell out to (e.g. ImageMagick's CLI). Passed
+      # through an env var and word-split, never interpolated into the script.
+      - name: Install system packages
+        if: inputs.apt-packages != ''
+        env:
+          APT_PACKAGES: ${{ inputs.apt-packages }}
+        run: |
+          sudo apt-get update -qq
+          # shellcheck disable=SC2086
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $APT_PACKAGES
+
       # DB service is a manual step, not a native `services:` block, because
       # `services:` can't be conditionally omitted per input, and driver
       # packages need different engines (mysql, postgres, mariadb, oracle,
@@ -292,6 +308,15 @@ jobs:
           php-version: ${{ inputs.coverage-php-version }}
           coverage: pcov
           tools: mago
+
+      - name: Install system packages
+        if: inputs.apt-packages != ''
+        env:
+          APT_PACKAGES: ${{ inputs.apt-packages }}
+        run: |
+          sudo apt-get update -qq
+          # shellcheck disable=SC2086
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $APT_PACKAGES
 
       - name: Start DB service
         if: inputs.db-image != '' && inputs.run-integration
