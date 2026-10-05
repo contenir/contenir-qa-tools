@@ -163,6 +163,7 @@ within the same GitHub org.
 | `min-msi` | Minimum MSI (%) required to pass `mutation-test` (default `"10"`, config-based per repo). |
 | `min-covered-msi` | Minimum covered-code MSI (%) required to pass `mutation-test` (default `"10"`, config-based per repo). |
 | `test-env-json` | JSON object of extra env vars exported (via `$GITHUB_ENV`) before running tests in `test` and `mutation-test`. |
+| `apt-packages` | Space-separated Ubuntu packages `apt-get install`ed at the start of `test` and `mutation-test`, for tools the tests shell out to (e.g. `imagemagick`). Empty (default) skips the step. |
 
 Plus `secrets: CODECOV_TOKEN`, `INFECTION_DASHBOARD_API_KEY` on
 `workflow_call` (both `required: false`).
