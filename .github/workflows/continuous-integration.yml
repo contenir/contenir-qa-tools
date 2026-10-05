@@ -230,9 +230,9 @@ jobs:
           # resolves to the *calling* repo here, not phpdb-qa-tools.
           slug: ${{ github.repository }}
           files: clover.xml
-          # Report-only for now across all consuming repos (legacy codebases
-          # being migrated) — don't fail CI on upload/coverage issues yet.
-          fail_ci_if_error: false
+          # Contenir packages are fully covered, so a failed upload (missing
+          # token, Codecov outage) must fail the job rather than pass silently.
+          fail_ci_if_error: true
 
   mutation-test:
     name: "Mutation testing"
