@@ -85,6 +85,49 @@ on:
         required: false
 
 jobs:
+  attributions:
+    name: "No AI attributions"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # Contenir policy: no AI attribution in PR titles, descriptions or
+      # commit messages. Pull requests check the title, description and every
+      # commit on the branch; pushes check the commits that were pushed.
+      - name: Check PR text and commit messages
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
+        run: |
+          PATTERN="(claude|co-authored-by:.*claude|generated-by:.*claude)"
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            if printf '%s\n%s' "$PR_TITLE" "$PR_BODY" | grep -Eiq "$PATTERN"; then
+              echo "::error::PR title or description contains Claude attributions."
+              exit 1
+            fi
+            RANGE="origin/${BASE_REF}..HEAD"
+          elif [ -n "$PUSH_BEFORE" ] && ! printf '%s' "$PUSH_BEFORE" | grep -Eq '^0+$'; then
+            RANGE="${PUSH_BEFORE}..${PUSH_AFTER}"
+          else
+            RANGE="-1 HEAD"
+          fi
+
+          if git log $RANGE --format=%B | grep -Eiq "$PATTERN"; then
+            echo "::error::One or more commit messages contain Claude signatures/attributions."
+            echo "Please rewrite your commit messages to remove AI attributions."
+            exit 1
+          fi
+
+          echo "No attributions found."
+
   mago:
     name: "Mago (PHP ${{ matrix.php }})"
     runs-on: ubuntu-latest
