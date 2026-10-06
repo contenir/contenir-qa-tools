@@ -92,7 +92,7 @@ on:
 jobs:
   attributions:
     name: "No AI attributions"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -135,7 +135,7 @@ jobs:
 
   mago:
     name: "Mago (PHP ${{ matrix.php }})"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -176,7 +176,7 @@ jobs:
 
   test:
     name: "Test (PHP ${{ matrix.php }} | ${{ matrix.dependencies }})"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -270,7 +270,7 @@ jobs:
     name: "Codecov"
     needs: [test]
     if: inputs.enable-codecov
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -297,7 +297,7 @@ jobs:
     name: "Mutation testing"
     needs: [test]
     if: inputs.enable-infection
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
