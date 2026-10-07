@@ -49,15 +49,15 @@ on:
         required: false
         default: 2
       enable-codecov:
-        description: "Turn on the codecov job."
+        description: "Run the codecov job. On by default; set false to opt out."
         type: boolean
         required: false
-        default: false
+        default: true
       enable-infection:
-        description: "Turn on the mutation-test job."
+        description: "Run the mutation-test job. On by default; set false to opt out."
         type: boolean
         required: false
-        default: false
+        default: true
       coverage-php-version:
         description: "Which php-versions entry is canonical for coverage/mutation testing."
         type: string
