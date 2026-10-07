@@ -115,10 +115,11 @@ Add the standard scripts to your `composer.json`:
 
 This repository ships a reusable CI workflow
 ([`.github/workflows/continuous-integration.yml`](.github/workflows/continuous-integration.yml))
-with five jobs: `attributions` (no AI attributions), `mago` (format/lint/analyze/guard),
-`test` (unit + optional integration, across a `php x [lowest, locked, latest]` matrix),
+with six jobs: `attributions` (no AI attributions), `mago` (format/lint/analyze/guard,
+optional Rector), `test` (unit + optional integration, across a
+`php x [lowest, locked, latest]` matrix), an optional `composer` job (validate/audit),
 and two optional downstream jobs, `codecov` and `mutation-test`, both gated on `test`
-succeeding. A consuming repository's entire CI file becomes:
+succeeding. A consuming library's entire CI file becomes:
 
 ```yaml
 # .github/workflows/continuous-integration.yml
@@ -144,7 +145,30 @@ jobs:
       apt-packages: "imagemagick"
 ```
 
-See [Workflow architecture](docs/workflow-architecture.md) for the full job
+An application tests only its lock file and usually needs extensions, a `.env` and
+sometimes a private dependency:
+
+```yaml
+jobs:
+  qa:
+    uses: contenir/contenir-qa-tools/.github/workflows/continuous-integration.yml@0.1.x
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      # Read-only deploy key for a private VCS dependency.
+      SSH_PRIVATE_KEY: ${{ secrets.PRIVATE_DEPENDENCY_DEPLOY_KEY }}
+    with:
+      php-versions: '["8.3"]'
+      dependency-versions: '["locked"]'
+      php-extensions: "intl, pdo_mysql, gd"
+      dotenv: |
+        APP_ENV=testing
+      enable-rector: true
+      enable-composer-audit: true
+      enable-codecov: true
+```
+
+Every input carries a description in the workflow file. See
+[Workflow architecture](docs/workflow-architecture.md) for the full input list, the job
 graph, the DB-service mechanics, and the Codecov/Infection secrets wiring.
 
 ## Documentation
@@ -152,6 +176,7 @@ graph, the DB-service mechanics, and the Codecov/Infection secrets wiring.
 - [Migration guide](docs/migration.md) — moving a Contenir repository onto the shared toolchain.
 - [Rule rationale](docs/rules.md) — why the non-default choices are what they are.
 - [Workflow architecture](docs/workflow-architecture.md) — job-split design for DB-backed integration tests, Codecov, and Infection.
+- [llms.txt](llms.txt) — condensed setup facts for coding agents.
 
 ## License
 
