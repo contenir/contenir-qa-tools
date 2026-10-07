@@ -16,6 +16,8 @@ reusable CI workflow carries Contenir-specific changes:
 - **`apt-packages` input** — installs Ubuntu packages before the `test` and `mutation-test`
   jobs, for system tools the tests shell out to (e.g. `imagemagick`).
 - **Pinned runners** — every job runs on `ubuntu-24.04` rather than `ubuntu-latest`.
+- **Codecov and mutation testing on by default** — `enable-codecov` and `enable-infection`
+  default to `true`. A package with no executable code opts out by setting them to `false`.
 
 Upstream changes are merged in from the `upstream` remote:
 
@@ -115,10 +117,11 @@ Add the standard scripts to your `composer.json`:
 
 This repository ships a reusable CI workflow
 ([`.github/workflows/continuous-integration.yml`](.github/workflows/continuous-integration.yml))
-with five jobs: `attributions` (no AI attributions), `mago` (format/lint/analyze/guard),
-`test` (unit + optional integration, across a `php x [lowest, locked, latest]` matrix),
-and two optional downstream jobs, `codecov` and `mutation-test`, both gated on `test`
-succeeding. A consuming repository's entire CI file becomes:
+with six jobs: `attributions` (no AI attributions), `mago` (format/lint/analyze/guard,
+optional Rector), `test` (unit + optional integration, across a
+`php x [lowest, locked, latest]` matrix), an optional `composer` job (validate/audit),
+and two downstream jobs, `codecov` and `mutation-test`, both gated on `test` succeeding
+and both on by default. A consuming library's entire CI file becomes:
 
 ```yaml
 # .github/workflows/continuous-integration.yml
@@ -135,16 +138,47 @@ jobs:
     with:
       php-versions: '["8.3", "8.4", "8.5"]'
       run-integration: true
-      enable-codecov: true
       coverage-php-version: "8.4"
-      enable-infection: true
       min-msi: "100"
       min-covered-msi: "100"
       # Only when the tests shell out to system tools.
       apt-packages: "imagemagick"
 ```
 
-See [Workflow architecture](docs/workflow-architecture.md) for the full job
+Mutation testing needs `infection/infection` in `require-dev`, the `mutation-test` script
+above and an `infection.json5.dist`:
+
+```sh
+composer require --dev infection/infection
+cp vendor/contenir/contenir-qa-tools/templates/infection.json5.dist .
+```
+
+An application tests only its lock file and usually needs extensions, a `.env` and
+sometimes a private dependency:
+
+```yaml
+jobs:
+  qa:
+    uses: contenir/contenir-qa-tools/.github/workflows/continuous-integration.yml@0.1.x
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      # Read-only deploy key for a private VCS dependency.
+      SSH_PRIVATE_KEY: ${{ secrets.PRIVATE_DEPENDENCY_DEPLOY_KEY }}
+    with:
+      php-versions: '["8.3"]'
+      dependency-versions: '["locked"]'
+      php-extensions: "intl, pdo_mysql, gd"
+      dotenv: |
+        APP_ENV=testing
+      enable-rector: true
+      enable-composer-audit: true
+      # Codecov and mutation testing are on by default. Remove this line once
+      # the application runs Infection.
+      enable-infection: false
+```
+
+Every input carries a description in the workflow file. See
+[Workflow architecture](docs/workflow-architecture.md) for the full input list, the job
 graph, the DB-service mechanics, and the Codecov/Infection secrets wiring.
 
 ## Documentation
@@ -153,6 +187,7 @@ graph, the DB-service mechanics, and the Codecov/Infection secrets wiring.
 - [Rule rationale](docs/rules.md) — why the non-default choices are what they are.
 - [Workflow architecture](docs/workflow-architecture.md) — job-split design for DB-backed integration tests, Codecov, and Infection.
 - [Auto-dev](docs/auto-dev.md) — reusable workflow that triages issues and turns accepted ones into draft PRs.
+- [llms.txt](llms.txt) — condensed setup facts for coding agents.
 
 ## License
 

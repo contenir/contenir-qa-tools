@@ -1,0 +1,25 @@
+# contenir/contenir-qa-tools
+
+> Shared QA toolchain for Contenir PHP packages and applications: a Mago base config (format, lint, analyze), a strict PHPUnit template, and a reusable GitHub Actions CI workflow. Fork of php-db/phpdb-qa-tools.
+
+Key facts for setting up or changing a consuming repository:
+
+- Require it as `"contenir/contenir-qa-tools": "0.1.x-dev"` (or `^0.1`) in require-dev. Mago is a standalone binary, not a Composer dependency.
+- `mago.toml` starts with `extends = "vendor/contenir/contenir-qa-tools/mago.toml"` and adds only php-version, `[source]` paths and local overrides. Arrays concatenate, tables merge, child scalars win; an extending file cannot remove a base analyzer exclusion.
+- The base config assumes tests in `test/`; Contenir libraries use `tests/Unit` and `tests/Integration`, so they override `too-many-methods` and `[analyzer] excludes` for `tests`.
+- CI is one job calling `uses: contenir/contenir-qa-tools/.github/workflows/continuous-integration.yml@0.1.x` with `secrets: inherit` (or explicit secrets) and `with:` inputs. Every input has a description in that file.
+- The workflow runs composer scripts, not tools directly: `test`, `test-coverage` (must write clover.xml), `test-integration`, `mutation-test` by default; rename via `test-script`, `test-coverage-script`, `integration-test-script`, `mutation-test-script`.
+- Libraries keep the default `dependency-versions` (`lowest`, `locked`, `latest`). Applications pass `dependency-versions: '["locked"]'`, `php-extensions`, `dotenv` (written to `.env` before install) and the `SSH_PRIVATE_KEY` secret for private VCS dependencies.
+- On by default (set `false` to opt out): `enable-codecov` (needs CODECOV_TOKEN; failed uploads fail the build) and `enable-infection` with `min-msi` / `min-covered-msi`.
+- Optional checks: `enable-rector`, `enable-composer-validate`, `enable-composer-audit`, `apt-packages` for system tools, `db-image` and friends for a database service.
+- Coverage runs on one leg: `coverage-php-version` (default: first `php-versions` entry) with `locked` dependencies, and only when Codecov or Infection is on.
+- An `attributions` job always runs and fails on AI attributions in PR titles, descriptions and commit messages.
+- Mago rule changes land only in major releases; docs, templates and new optional workflow inputs may land in minor or patch releases.
+
+## Docs
+
+- [README](README.md)
+- [Workflow architecture and full input list](docs/workflow-architecture.md)
+- [Migration guide](docs/migration.md)
+- [Rule rationale](docs/rules.md)
+- [Workflow source](.github/workflows/continuous-integration.yml)
