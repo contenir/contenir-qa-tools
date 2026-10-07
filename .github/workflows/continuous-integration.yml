@@ -114,15 +114,15 @@ on:
         required: false
         default: 2
       enable-codecov:
-        description: "Turn on the codecov job, which uploads the coverage leg's clover.xml. Needs the CODECOV_TOKEN secret; a failed upload fails the build."
+        description: "Run the codecov job, which uploads the coverage leg's clover.xml. On by default; set false to opt out. Needs the CODECOV_TOKEN secret; a failed upload fails the build."
         type: boolean
         required: false
-        default: false
+        default: true
       enable-infection:
-        description: "Turn on the mutation-test job. Needs infection/infection in require-dev, an infection.json5(.dist) and the mutation-test-script."
+        description: "Run the mutation-test job. On by default; set false to opt out. Needs infection/infection in require-dev, an infection.json5(.dist) and the mutation-test-script."
         type: boolean
         required: false
-        default: false
+        default: true
       coverage-php-version:
         description: "Which php-versions entry runs coverage and mutation testing. Empty = the first php-versions entry."
         type: string

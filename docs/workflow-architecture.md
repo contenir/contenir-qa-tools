@@ -133,7 +133,7 @@ Unit tests always run (`test-script`); integration tests run
 
 ## `codecov` job
 
-`needs: [test]`, job-level `if: inputs.enable-codecov`. Downloads the
+`needs: [test]`, job-level `if: inputs.enable-codecov` (default `true`). Downloads the
 `clover.xml` artifact and runs `codecov/codecov-action`. No PHP setup, no DB.
 `fail_ci_if_error: true` — Contenir components are held at full coverage, so
 a failed upload (missing token, Codecov outage) fails the build rather than
@@ -147,7 +147,7 @@ repo, so this works with no extra input.
 ## `mutation-test` job
 
 `needs: [test]` (gating — skip if base tests already failed). Job-level
-`if: inputs.enable-infection`. Needs its own full environment (checkout,
+`if: inputs.enable-infection` (default `true`). Needs its own full environment (checkout,
 setup-php **with `tools: mago`**, the `apt-packages` step, `composer install
 --locked`, the same conditional DB-startup step as `test` if
 `run-integration`) since Infection re-executes the suite per mutant — it
@@ -227,8 +227,8 @@ within the same GitHub org.
 | `db-health-cmd` | Command run via `docker exec` to check readiness. |
 | `db-health-retries` | Max health-check attempts (default `30`). Raise for slow-starting engines (Oracle, MSSQL). |
 | `db-health-interval-seconds` | Seconds to sleep between health-check attempts (default `2`). |
-| `enable-codecov` | Turns on the `codecov` job. |
-| `enable-infection` | Turns on the `mutation-test` job. |
+| `enable-codecov` | Runs the `codecov` job (default `true`; `false` opts out). |
+| `enable-infection` | Runs the `mutation-test` job (default `true`; `false` opts out). |
 | `coverage-php-version` | Which matrix leg is canonical for coverage/mutation. Empty (default) = the first `php-versions` entry. |
 | `min-msi` | Minimum MSI (%) required to pass `mutation-test` (default `"10"`). |
 | `min-covered-msi` | Minimum covered-code MSI (%) required to pass `mutation-test` (default `"10"`). |

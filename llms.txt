@@ -10,7 +10,8 @@ Key facts for setting up or changing a consuming repository:
 - CI is one job calling `uses: contenir/contenir-qa-tools/.github/workflows/continuous-integration.yml@0.1.x` with `secrets: inherit` (or explicit secrets) and `with:` inputs. Every input has a description in that file.
 - The workflow runs composer scripts, not tools directly: `test`, `test-coverage` (must write clover.xml), `test-integration`, `mutation-test` by default; rename via `test-script`, `test-coverage-script`, `integration-test-script`, `mutation-test-script`.
 - Libraries keep the default `dependency-versions` (`lowest`, `locked`, `latest`). Applications pass `dependency-versions: '["locked"]'`, `php-extensions`, `dotenv` (written to `.env` before install) and the `SSH_PRIVATE_KEY` secret for private VCS dependencies.
-- Optional checks: `enable-codecov` (needs CODECOV_TOKEN; failed uploads fail the build), `enable-infection` with `min-msi` / `min-covered-msi`, `enable-rector`, `enable-composer-validate`, `enable-composer-audit`, `apt-packages` for system tools, `db-image` and friends for a database service.
+- On by default (set `false` to opt out): `enable-codecov` (needs CODECOV_TOKEN; failed uploads fail the build) and `enable-infection` with `min-msi` / `min-covered-msi`.
+- Optional checks: `enable-rector`, `enable-composer-validate`, `enable-composer-audit`, `apt-packages` for system tools, `db-image` and friends for a database service.
 - Coverage runs on one leg: `coverage-php-version` (default: first `php-versions` entry) with `locked` dependencies, and only when Codecov or Infection is on.
 - An `attributions` job always runs and fails on AI attributions in PR titles, descriptions and commit messages.
 - Mago rule changes land only in major releases; docs, templates and new optional workflow inputs may land in minor or patch releases.

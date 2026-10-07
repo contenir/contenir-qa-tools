@@ -16,6 +16,8 @@ reusable CI workflow carries Contenir-specific changes:
 - **`apt-packages` input** — installs Ubuntu packages before the `test` and `mutation-test`
   jobs, for system tools the tests shell out to (e.g. `imagemagick`).
 - **Pinned runners** — every job runs on `ubuntu-24.04` rather than `ubuntu-latest`.
+- **Codecov and mutation testing on by default** — `enable-codecov` and `enable-infection`
+  default to `true`. A package with no executable code opts out by setting them to `false`.
 
 Upstream changes are merged in from the `upstream` remote:
 
@@ -118,8 +120,8 @@ This repository ships a reusable CI workflow
 with six jobs: `attributions` (no AI attributions), `mago` (format/lint/analyze/guard,
 optional Rector), `test` (unit + optional integration, across a
 `php x [lowest, locked, latest]` matrix), an optional `composer` job (validate/audit),
-and two optional downstream jobs, `codecov` and `mutation-test`, both gated on `test`
-succeeding. A consuming library's entire CI file becomes:
+and two downstream jobs, `codecov` and `mutation-test`, both gated on `test` succeeding
+and both on by default. A consuming library's entire CI file becomes:
 
 ```yaml
 # .github/workflows/continuous-integration.yml
@@ -136,13 +138,19 @@ jobs:
     with:
       php-versions: '["8.3", "8.4", "8.5"]'
       run-integration: true
-      enable-codecov: true
       coverage-php-version: "8.4"
-      enable-infection: true
       min-msi: "100"
       min-covered-msi: "100"
       # Only when the tests shell out to system tools.
       apt-packages: "imagemagick"
+```
+
+Mutation testing needs `infection/infection` in `require-dev`, the `mutation-test` script
+above and an `infection.json5.dist`:
+
+```sh
+composer require --dev infection/infection
+cp vendor/contenir/contenir-qa-tools/templates/infection.json5.dist .
 ```
 
 An application tests only its lock file and usually needs extensions, a `.env` and
@@ -164,7 +172,9 @@ jobs:
         APP_ENV=testing
       enable-rector: true
       enable-composer-audit: true
-      enable-codecov: true
+      # Codecov and mutation testing are on by default. Remove this line once
+      # the application runs Infection.
+      enable-infection: false
 ```
 
 Every input carries a description in the workflow file. See
