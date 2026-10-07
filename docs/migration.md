@@ -31,6 +31,14 @@ uses: contenir/contenir-qa-tools/.github/workflows/continuous-integration.yml@0.
 Codecov upload failures now fail the build, so make sure `CODECOV_TOKEN` is available
 to the repository before merging.
 
+Codecov and mutation testing are on by default. Install Infection and copy the template
+before merging, or set `enable-infection: false` until the package is ready:
+
+```sh
+composer require --dev infection/infection
+cp vendor/contenir/contenir-qa-tools/templates/infection.json5.dist .
+```
+
 ## From laminas-coding-standard
 
 Repository-by-repository, in dependency order.
