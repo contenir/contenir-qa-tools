@@ -186,6 +186,7 @@ graph, the DB-service mechanics, and the Codecov/Infection secrets wiring.
 - [Migration guide](docs/migration.md) — moving a Contenir repository onto the shared toolchain.
 - [Rule rationale](docs/rules.md) — why the non-default choices are what they are.
 - [Workflow architecture](docs/workflow-architecture.md) — job-split design for DB-backed integration tests, Codecov, and Infection.
+- [Auto-dev](docs/auto-dev.md) — reusable workflow that triages issues and turns accepted ones into draft PRs.
 - [llms.txt](llms.txt) — condensed setup facts for coding agents.
 
 ## License
