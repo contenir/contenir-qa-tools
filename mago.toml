@@ -1,4 +1,4 @@
-#:schema https://mago.carthage.software/1.43.0/schema.json
+#:schema https://mago.carthage.software/1.52.0/schema.json
 # contenir/contenir-qa-tools — shared base configuration (forked from php-db/phpdb-qa-tools).
 #
 # Consuming repositories extend this file and supply the project-specific
