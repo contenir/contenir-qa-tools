@@ -63,6 +63,11 @@ on:
         type: string
         required: false
         default: "mutation-test"
+      mago-version:
+        description: "Mago release installed by shivammathur/setup-php in the mago and mutation-test jobs, e.g. \"1.52.0\". Pinned because each Mago release can change formatter output and analyzer findings; bumping it means reformatting and regenerating the lint and analysis baselines in the consumer. Use an exact release tag: setup-php silently installs the latest release when the tag doesn't exist."
+        type: string
+        required: false
+        default: "1.52.0"
       mago-guard:
         description: "Run mago guard in the mago job (architectural rules from the [guard] section of mago.toml)."
         type: boolean
@@ -234,7 +239,7 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: ${{ inputs.php-extensions }}
           coverage: none
-          tools: mago
+          tools: mago:${{ inputs.mago-version }}
 
       - name: Load SSH key
         if: env.HAS_SSH_KEY == 'true'
@@ -424,7 +429,7 @@ jobs:
           php-version: ${{ inputs.coverage-php-version || fromJSON(inputs.php-versions)[0] }}
           extensions: ${{ inputs.php-extensions }}
           coverage: pcov
-          tools: mago
+          tools: mago:${{ inputs.mago-version }}
 
       - name: Install system packages
         if: inputs.apt-packages != ''
