@@ -15,8 +15,10 @@ into draft pull requests:
    gets `auto:failed`, the check output and the attempted diff.
 3. **Review.** Every auto-dev PR gets an independent review comment.
 4. **Respond.** Mentioning `@claude` in a PR comment, inline comment or
-   review asks for changes, which are pushed to the PR branch. On an issue,
-   the mention re-runs triage with the comment as new input.
+   review asks for changes, which are pushed to the PR branch. On a closed
+   or merged PR it only replies that the PR is closed; open an issue
+   instead. On an issue, the mention re-runs triage with the comment as new
+   input.
 
 Only people with write, maintain or admin permission on the repository can
 start triage from an issue or comment, or get a response. Labels work for
