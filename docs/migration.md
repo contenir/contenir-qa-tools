@@ -1,19 +1,50 @@
-# Migrating from laminas-coding-standard
+# Migration guide
 
-Repository-by-repository, in dependency order, using `phpdb-validator` as the template.
+Two starting points are covered: a Contenir repository that already uses the upstream
+`php-db/phpdb-qa-tools` package, and one still on laminas-coding-standard. In both cases
+`contenir-storage` is the reference repository to copy from.
 
-## Prerequisites
+## From php-db/phpdb-qa-tools
+
+The Mago configuration and PHPUnit baseline are the same, so only the package name and
+the CI reference change.
+
+### 1. Swap the dev dependency
+
+```sh
+composer remove --dev php-db/phpdb-qa-tools
+composer require --dev contenir/contenir-qa-tools:0.1.x-dev
+```
+
+### 2. Point mago.toml at the new package
+
+```toml
+extends = "vendor/contenir/contenir-qa-tools/mago.toml"
+```
+
+### 3. Point CI at the Contenir workflow
+
+```yaml
+uses: contenir/contenir-qa-tools/.github/workflows/continuous-integration.yml@0.1.x
+```
+
+Codecov upload failures now fail the build, so make sure `CODECOV_TOKEN` is available
+to the repository before merging.
+
+## From laminas-coding-standard
+
+Repository-by-repository, in dependency order.
+
+### Prerequisites
 
 Install the Mago binary once per machine (see the [README](../README.md#prerequisite-install-mago)).
-
-## Steps
 
 ### 1. Swap dev dependencies
 
 ```sh
 composer remove --dev laminas/laminas-coding-standard
 # also remove psalm/psalm, vimeo/psalm, or phpstan/phpstan if present
-composer require --dev php-db/phpdb-qa-tools
+composer require --dev contenir/contenir-qa-tools:0.1.x-dev
 ```
 
 ### 2. Remove phpcs artifacts
@@ -26,30 +57,22 @@ Also remove any `psalm.xml` / `phpstan.neon` and their baselines.
 
 ### 3. Add the minimal mago.toml
 
-```toml
-extends = "vendor/php-db/phpdb-qa-tools/mago.toml"
-php-version = "8.2.0"
-
-[source]
-paths = ["src", "test"]
-includes = ["vendor"]
-```
-
-Append repository-specific `[analyzer]` settings (e.g. `class-initializers`) as needed.
+Copy the `mago.toml` shown in the [README](../README.md#1-mago). Append
+repository-specific `[analyzer]` settings (e.g. `class-initializers`) as needed.
 
 ### 4. Adopt the PHPUnit baseline
 
 ```sh
-cp vendor/php-db/phpdb-qa-tools/templates/phpunit.xml.dist .
+cp vendor/contenir/contenir-qa-tools/templates/phpunit.xml.dist .
 ```
 
-Adjust test-suite paths only if the repository cannot follow the standard
-`test/unit` / `test/integration` layout.
+Point the suites at `tests/Unit` / `tests/Integration` and name them `unit` /
+`integration`, matching the other Contenir components.
 
 ### 5. Update composer scripts
 
-Adopt the standard `check` / `cs-check` / `cs-fix` / `static-analysis` / `test`
-scripts (see the README).
+Adopt the standard `check` / `cs-check` / `cs-fix` / `static-analysis` / `test` /
+`test-integration` / `mutation-test` scripts (see the README).
 
 ### 6. Reformat in a single isolated commit
 

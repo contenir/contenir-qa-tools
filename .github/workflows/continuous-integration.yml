@@ -286,7 +286,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           # CODECOV_TOKEN is an org-wide upload token, which can't infer the
           # target repo the way a repo-specific token can. `github.repository`
-          # resolves to the *calling* repo here, not phpdb-qa-tools.
+          # resolves to the *calling* repo here, not contenir-qa-tools.
           slug: ${{ github.repository }}
           files: clover.xml
           # Contenir packages are fully covered, so a failed upload (missing
