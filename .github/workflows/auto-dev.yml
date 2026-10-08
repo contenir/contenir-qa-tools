@@ -29,6 +29,16 @@ on:
         type: string
         required: false
         default: "simon-mundy"
+      commit-user-login:
+        description: "GitHub login that auto-dev commits are made as. Commits use its noreply address, so they count towards that account rather than a bot."
+        type: string
+        required: false
+        default: "simon-mundy"
+      commit-user-id:
+        description: "Numeric GitHub user id of commit-user-login, used in its noreply address."
+        type: string
+        required: false
+        default: "46739456"
       branch-prefix:
         description: "Prefix for auto-dev branches."
         type: string
@@ -200,6 +210,8 @@ jobs:
           github_token: ${{ steps.app.outputs.token }}
           allowed_bots: ${{ steps.app.outputs.app-slug }}
           settings: ${{ env.CLAUDE_SETTINGS }}
+          bot_id: ${{ inputs.commit-user-id }}
+          bot_name: ${{ inputs.commit-user-login }}
           prompt: |
             You are the triage gate for ${{ github.repository }}. Decide whether issue #${{ github.event.issue.number }} should be built automatically.
 
@@ -390,6 +402,8 @@ jobs:
           github_token: ${{ steps.app.outputs.token }}
           allowed_bots: ${{ steps.app.outputs.app-slug }}
           settings: ${{ env.CLAUDE_SETTINGS }}
+          bot_id: ${{ inputs.commit-user-id }}
+          bot_name: ${{ inputs.commit-user-login }}
           prompt: |
             Implement issue #${{ github.event.issue.number }} in ${{ github.repository }}. Read it and its triage plan with `gh issue view ${{ github.event.issue.number }} --json title,body,comments`. (`--comments` alone prints only the comments, not the issue body.)
 
@@ -447,13 +461,13 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           RESULT: ${{ steps.claude.outputs.structured_output }}
-          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          COMMIT_LOGIN: ${{ inputs.commit-user-login }}
+          COMMIT_ID: ${{ inputs.commit-user-id }}
           REVIEWERS: ${{ inputs.reviewers }}
           CHECK: ${{ inputs.check-command }}
         run: |
-          bot_id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
-          git config user.name "${APP_SLUG}[bot]"
-          git config user.email "${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+          git config user.name "$(gh api "/users/${COMMIT_LOGIN}" --jq '.name // .login')"
+          git config user.email "${COMMIT_ID}+${COMMIT_LOGIN}@users.noreply.github.com"
 
           jq -r .commit_message <<< "$RESULT" > "$RUNNER_TEMP/commit.txt"
           git add -A
@@ -573,6 +587,8 @@ jobs:
           github_token: ${{ steps.app.outputs.token }}
           allowed_bots: ${{ steps.app.outputs.app-slug }}
           settings: ${{ env.CLAUDE_SETTINGS }}
+          bot_id: ${{ inputs.commit-user-id }}
+          bot_name: ${{ inputs.commit-user-login }}
           prompt: |
             Review pull request #${{ github.event.pull_request.number }} in ${{ github.repository }}. It was written automatically from the issue it closes; you did not write it and should not trust it.
 
@@ -688,6 +704,8 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app.outputs.token }}
           settings: ${{ env.CLAUDE_SETTINGS }}
+          bot_id: ${{ inputs.commit-user-id }}
+          bot_name: ${{ inputs.commit-user-login }}
           branch_prefix: "auto/"
           use_sticky_comment: true
           display_report: true

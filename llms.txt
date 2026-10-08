@@ -13,7 +13,7 @@ Key facts for setting up or changing a consuming repository:
 - On by default (set `false` to opt out): `enable-codecov` (needs CODECOV_TOKEN; failed uploads fail the build) and `enable-infection` with `min-msi` / `min-covered-msi`.
 - Optional checks: `enable-rector`, `enable-composer-validate`, `enable-composer-audit`, `apt-packages` for system tools, `db-image` and friends for a database service.
 - Coverage runs on one leg: `coverage-php-version` (default: first `php-versions` entry) with `locked` dependencies, and only when Codecov or Infection is on.
-- An `attributions` job always runs and fails on AI attributions in PR titles, descriptions and commit messages.
+- An `attributions` job always runs and fails on AI attributions in PR titles, descriptions and commit messages, and on commits authored or committed by an AI identity.
 - Mago rule changes land only in major releases; docs, templates and new optional workflow inputs may land in minor or patch releases.
 
 ## Docs

@@ -37,11 +37,18 @@ image upgrade can't change system packages underneath a passing build.
 
 ## `attributions` job
 
-Contenir policy: no AI attribution in pull request titles, descriptions or
-commit messages. On `pull_request` the job checks the title, the description
-and every commit between the base branch and `HEAD`; on `push` it checks the
-pushed range (`before..after`), falling back to the last commit when a branch
-is first created. Any match fails the build with an error annotation.
+Contenir policy: no AI attribution in pull request titles, descriptions,
+commit messages or commit identities. Text fails on a `Co-Authored-By` or
+`Generated with` line naming the assistant, a `claude.ai/code` or
+`claude.com/code` link, or its noreply address; a mention such as `CLAUDE.md`
+passes. A commit fails when its author or committer name or email names the
+assistant or Anthropic.
+
+On `pull_request` the job checks the title, the description and every commit
+on the pull request branch. On `push` it checks the pushed range
+(`before..HEAD`). When a branch is first created or force-pushed, `before` is
+not an ancestor, so it checks every commit no other branch or tag already
+has. Each failing commit gets its own error annotation.
 
 ## `composer` job
 

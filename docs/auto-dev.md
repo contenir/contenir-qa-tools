@@ -64,6 +64,8 @@ Pass `with:` inputs only where the repository differs from the defaults:
 | `check-command` | `composer check` | Must pass before a PR is opened. |
 | `guidance` | none | Repository-specific conventions, added to the Contenir conventions built into the workflow. |
 | `branch-prefix` | `auto/issue-` | Prefix for auto-dev branches. |
+| `commit-user-login` | `simon-mundy` | Account auto-dev commits as, by its noreply address. |
+| `commit-user-id` | `46739456` | Numeric id of `commit-user-login`. |
 
 The workflow takes effect once the caller is on the default branch, because
 GitHub runs issue workflows from there.
@@ -94,6 +96,13 @@ Created on first use:
 
 ## AI attribution
 
-The `attributions` CI job rejects PR text and commit messages that name the
-assistant. Auto-dev's commits, PR titles and PR descriptions are written to
-pass it. Comments are not checked, so mentions in comments are fine.
+The `attributions` CI job rejects PR text, commit messages and commit
+identities that name the assistant. Auto-dev's commits, PR titles and PR
+descriptions are written to pass it. Comments are not checked, so mentions in
+comments are fine.
+
+Every commit auto-dev makes, whether from the implementer, the `@claude`
+responder or the draft-PR step, is authored and committed as
+`commit-user-login` at its GitHub noreply address. The action would otherwise
+commit as `claude[bot]`. The `auto/` branch, the `auto:generated` label and the
+App that opens the PR still show the change came from auto-dev.

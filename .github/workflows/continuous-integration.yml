@@ -164,35 +164,54 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Contenir policy: no AI attribution in PR titles, descriptions or
-      # commit messages. Pull requests check the title, description and every
-      # commit on the branch; pushes check the commits that were pushed.
-      - name: Check PR text and commit messages
+      # Contenir policy: no AI attribution in PR titles, descriptions, commit
+      # messages or commit identities. Pull requests check the title,
+      # description and every commit on the branch. Pushes check every commit
+      # that no other branch already had, so new and force-pushed branches are
+      # checked in full rather than by their tip alone.
+      - name: Check PR text, commit messages and commit identities
         env:
           EVENT_NAME: ${{ github.event_name }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           PUSH_BEFORE: ${{ github.event.before }}
-          PUSH_AFTER: ${{ github.event.after }}
+          PUSH_REF: ${{ github.ref }}
         run: |
-          PATTERN="(claude|co-authored-by:.*claude|generated-by:.*claude)"
+          TEXT_PATTERN='co-authored-by:.*(claude|anthropic)|generated[ -](with|by).*claude|claude\.(ai|com)/code|noreply@anthropic\.com'
+          IDENTITY_PATTERN='claude|anthropic'
 
           if [ "$EVENT_NAME" = "pull_request" ]; then
-            if printf '%s\n%s' "$PR_TITLE" "$PR_BODY" | grep -Eiq "$PATTERN"; then
-              echo "::error::PR title or description contains Claude attributions."
+            if printf '%s\n%s' "$PR_TITLE" "$PR_BODY" | grep -Eiq "$TEXT_PATTERN"; then
+              echo "::error::PR title or description contains an AI attribution."
               exit 1
             fi
-            RANGE="origin/${BASE_REF}..HEAD"
-          elif [ -n "$PUSH_BEFORE" ] && ! printf '%s' "$PUSH_BEFORE" | grep -Eq '^0+$'; then
-            RANGE="${PUSH_BEFORE}..${PUSH_AFTER}"
+            set -- "origin/${BASE_REF}..HEAD^2"
+          elif [ -n "$PUSH_BEFORE" ] && ! printf '%s' "$PUSH_BEFORE" | grep -Eq '^0+$' \
+            && git merge-base --is-ancestor "$PUSH_BEFORE" HEAD 2>/dev/null; then
+            set -- "${PUSH_BEFORE}..HEAD"
           else
-            RANGE="-1 HEAD"
+            BRANCH="refs/remotes/origin/${PUSH_REF#refs/heads/}"
+            set -- HEAD --not $(git for-each-ref --format='%(refname)' refs/remotes/origin refs/tags | grep -vx "$BRANCH")
           fi
 
-          if git log $RANGE --format=%B | grep -Eiq "$PATTERN"; then
-            echo "::error::One or more commit messages contain Claude signatures/attributions."
-            echo "Please rewrite your commit messages to remove AI attributions."
+          COMMITS=$(git rev-list "$@")
+          echo "Checking $(printf '%s' "$COMMITS" | grep -c .) commit(s)."
+
+          FOUND=0
+          for COMMIT in $COMMITS; do
+            if git log -1 --format='%an <%ae>%n%cn <%ce>' "$COMMIT" | grep -Eiq "$IDENTITY_PATTERN"; then
+              echo "::error::$(git log -1 --format='%h "%s" was authored by %an <%ae> and committed by %cn <%ce>.' "$COMMIT")"
+              FOUND=1
+            fi
+            if git log -1 --format=%B "$COMMIT" | grep -Eiq "$TEXT_PATTERN"; then
+              echo "::error::$(git log -1 --format='%h "%s" has an AI attribution in its message.' "$COMMIT")"
+              FOUND=1
+            fi
+          done
+
+          if [ "$FOUND" -ne 0 ]; then
+            echo "Rewrite the listed commits to remove AI identities and attributions."
             exit 1
           fi
 
