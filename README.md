@@ -10,7 +10,8 @@ The Mago base configuration and the PHPUnit baseline are kept in step with upstr
 reusable CI workflow carries Contenir-specific changes:
 
 - **No AI attributions** — an extra `attributions` job fails the build when a pull request
-  title, description or commit message carries an AI attribution.
+  title, description or commit message carries an AI attribution, or a commit's author or
+  committer is an AI identity.
 - **Codecov failures fail the build** — `fail_ci_if_error: true`, because Contenir packages
   are held at full coverage and a silent upload failure would hide a regression.
 - **`apt-packages` input** — installs Ubuntu packages before the `test` and `mutation-test`
