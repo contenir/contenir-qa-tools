@@ -143,6 +143,11 @@ on:
         type: string
         required: false
         default: "10"
+      infection-diff-on-pull-requests:
+        description: "On pull_request events, mutate only the lines the pull request changes (Infection --git-diff-lines against the base branch), and pass when it changes no mutable code. Push events still run the whole suite, so the MSI gate and the Stryker badge keep covering everything. Off by default."
+        type: boolean
+        required: false
+        default: false
     secrets:
       CODECOV_TOKEN:
         description: "Codecov upload token. An org-wide token works because the upload passes the calling repository as the slug."
@@ -439,8 +444,11 @@ jobs:
     env:
       HAS_SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY != '' }}
     steps:
+      # A diff-only run compares against the base branch, so it needs history.
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: ${{ (inputs.infection-diff-on-pull-requests && github.event_name == 'pull_request') && '0' || '1' }}
 
       - name: Set up PHP and Mago
         uses: shivammathur/setup-php@v2
@@ -503,4 +511,11 @@ jobs:
       - name: Mutation testing
         env:
           INFECTION_DASHBOARD_API_KEY: ${{ secrets.INFECTION_DASHBOARD_API_KEY }}
-        run: composer ${{ inputs.mutation-test-script }} -- --min-msi=${{ inputs.min-msi }} --min-covered-msi=${{ inputs.min-covered-msi }} --logger-github
+          DIFF_ONLY: ${{ inputs.infection-diff-on-pull-requests && github.event_name == 'pull_request' }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          args=(--min-msi=${{ inputs.min-msi }} --min-covered-msi=${{ inputs.min-covered-msi }} --logger-github)
+          if [ "$DIFF_ONLY" = "true" ]; then
+            args+=(--git-diff-lines "--git-diff-base=origin/$BASE_REF" --ignore-msi-with-no-mutations)
+          fi
+          composer ${{ inputs.mutation-test-script }} -- "${args[@]}"

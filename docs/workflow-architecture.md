@@ -179,6 +179,13 @@ repositories just adopting mutation testing; Contenir components set both to
 --min-covered-msi=... --logger-github` (the composer script itself stays
 plain `infection`, flags are appended at invocation time).
 
+`infection-diff-on-pull-requests` (default `false`) makes a pull request
+mutate only the lines it changes: the checkout fetches full history and
+Infection runs with `--git-diff-lines --git-diff-base=origin/<base branch>
+--ignore-msi-with-no-mutations`, so a pull request that changes no mutable
+code passes. Push events still mutate everything, so the release branch keeps
+the full MSI gate and the Stryker badge.
+
 ## Applications
 
 The defaults suit a library. An application deploys its lock file, boots from
@@ -240,6 +247,7 @@ within the same GitHub org.
 | `coverage-php-version` | Which matrix leg is canonical for coverage/mutation. Empty (default) = the first `php-versions` entry. |
 | `min-msi` | Minimum MSI (%) required to pass `mutation-test` (default `"10"`). |
 | `min-covered-msi` | Minimum covered-code MSI (%) required to pass `mutation-test` (default `"10"`). |
+| `infection-diff-on-pull-requests` | On `pull_request` events, mutate only the changed lines against the base branch (default `false`). Push events run the whole suite. |
 | `test-env-json` | JSON object of extra env vars exported (via `$GITHUB_ENV`) before running tests in `test` and `mutation-test`. |
 | `apt-packages` | Space-separated Ubuntu packages `apt-get install`ed at the start of `test` and `mutation-test`, for tools the tests shell out to (e.g. `imagemagick`). Empty (default) skips the step. |
 

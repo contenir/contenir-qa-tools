@@ -21,6 +21,9 @@ reusable CI workflow carries Contenir-specific changes:
   installs, instead of whatever setup-php resolves as latest.
 - **Codecov and mutation testing on by default** — `enable-codecov` and `enable-infection`
   default to `true`. A package with no executable code opts out by setting them to `false`.
+- **Diff-only mutation testing on pull requests** — `infection-diff-on-pull-requests: true`
+  mutates only the lines a pull request changes; pushes to release branches still mutate
+  everything.
 
 Upstream changes are merged in from the `upstream` remote:
 
