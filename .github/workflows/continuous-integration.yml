@@ -444,11 +444,13 @@ jobs:
     env:
       HAS_SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY != '' }}
     steps:
-      # A diff-only run compares against the base branch, so it needs history.
+      # A diff-only run compares against the base branch, so it needs full
+      # history (fetch-depth 0). The condition is inverted because 0 is falsy
+      # in expressions: `cond && 0 || 1` would always yield 1.
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: ${{ (inputs.infection-diff-on-pull-requests && github.event_name == 'pull_request') && '0' || '1' }}
+          fetch-depth: ${{ !(inputs.infection-diff-on-pull-requests && github.event_name == 'pull_request') && 1 || 0 }}
 
       - name: Set up PHP and Mago
         uses: shivammathur/setup-php@v2
