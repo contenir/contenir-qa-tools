@@ -231,7 +231,7 @@ within the same GitHub org.
 | `test-coverage-script` | Composer script for the coverage leg; must write `clover.xml` (default `test-coverage`). |
 | `integration-test-script` | Composer script for the integration suite (default `test-integration`). |
 | `mutation-test-script` | Composer script that runs Infection (default `mutation-test`). |
-| `mago-version` | Mago release installed in the `mago` and `mutation-test` jobs (default `"1.52.0"`). Bumping it means reformatting and regenerating baselines in the consumer. |
+| `mago-version` | Mago release installed in the `mago` and `mutation-test` jobs (default `"1.57.0"`). Bumping it means reformatting and regenerating baselines in the consumer. |
 | `mago-guard` | Run `mago guard` (default `true`). |
 | `enable-rector` | Run `vendor/bin/rector process --dry-run` in the `mago` job (default `false`). |
 | `enable-composer-validate` | Run `composer validate --strict` in the `composer` job (default `false`). |
