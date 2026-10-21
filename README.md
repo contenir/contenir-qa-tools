@@ -17,7 +17,7 @@ reusable CI workflow carries Contenir-specific changes:
 - **`apt-packages` input** — installs Ubuntu packages before the `test` and `mutation-test`
   jobs, for system tools the tests shell out to (e.g. `imagemagick`).
 - **Pinned runners** — every job runs on `ubuntu-24.04` rather than `ubuntu-latest`.
-- **Pinned Mago** — the `mago-version` input (default `1.52.0`) fixes the Mago release CI
+- **Pinned Mago** — the `mago-version` input (default `1.57.0`) fixes the Mago release CI
   installs, instead of whatever setup-php resolves as latest.
 - **Codecov and mutation testing on by default** — `enable-codecov` and `enable-infection`
   default to `true`. A package with no executable code opts out by setting them to `false`.
@@ -185,7 +185,7 @@ jobs:
 
 #### Mago version
 
-CI installs the Mago release named by the `mago-version` input (default `1.52.0`, the
+CI installs the Mago release named by the `mago-version` input (default `1.57.0`, the
 version the `#:schema` line in the shared `mago.toml` points at). Mago releases change
 formatter output and analyzer findings, so an unpinned install would break
 `mago format --check`, `mago lint` and `mago analyze` in every consumer without a code

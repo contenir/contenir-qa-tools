@@ -1,4 +1,4 @@
-#:schema https://mago.carthage.software/1.52.0/schema.json
+#:schema https://mago.carthage.software/1.57.0/schema.json
 # contenir/contenir-qa-tools — shared base configuration (forked from php-db/phpdb-qa-tools).
 #
 # Consuming repositories extend this file and supply the project-specific
@@ -10,7 +10,11 @@
 #   [source]
 #   paths = ["src", "test"]
 #   includes = ["vendor"]
-version = "1"
+# The exact Mago release CI installs (the mago-version input). Any other
+# release, including a patch release, aborts the run rather than formatting
+# or analysing differently from CI.
+version = "1.57.0"
+version-drift-fail-level = "patch"
 
 [formatter]
 preset = "default"

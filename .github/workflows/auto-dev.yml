@@ -376,7 +376,7 @@ jobs:
           php-version: ${{ inputs.php-version }}
           extensions: ${{ inputs.php-extensions }}
           coverage: pcov
-          tools: mago
+          tools: mago:1.57.0
 
       - name: Install system packages
         if: inputs.apt-packages != '' && steps.existing.outputs.skip != 'true'
@@ -670,7 +670,7 @@ jobs:
           php-version: ${{ inputs.php-version }}
           extensions: ${{ inputs.php-extensions }}
           coverage: pcov
-          tools: mago
+          tools: mago:1.57.0
 
       - name: Install system packages
         if: inputs.apt-packages != ''
