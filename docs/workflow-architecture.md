@@ -208,10 +208,12 @@ inside the real legacy CMS, as the extensions plan's section 12 asks.
 4. Adds the handle to the e2e site's `extensions.global.php`. Not the
    `.local` file: the seed deletes it, and every test reseeds.
 5. Runs one Playwright spec beside the CMS's own, with its seed and sign-in
-   helpers, as the fixture administrator:
+   helpers. Each signed-in test seeds the site as freshly deployed
+   (`--unverified`) and signs in the fixture administrator, so the update
+   check runs, and with it the enabled add-ons' migrations, as on a live
+   site after a release. The seed itself runs only the CMS's migrations.
    - `/admin/login` loads;
-   - after an `--unverified` seed, the CMS update check shows no
-     "Extension *handle* could not load";
+   - the update check shows no "Extension *handle* could not load";
    - Site Settings > Extensions shows the add-on Enabled and Healthy;
    - each `boot-cms-pages` path returns 200 with a heading;
    - no test sees an uncaught script error.

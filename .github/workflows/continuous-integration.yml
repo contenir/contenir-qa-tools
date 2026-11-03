@@ -751,17 +751,25 @@ jobs:
               await expect(page.getByLabel('Username')).toBeVisible()
           })
 
-          test(`the update check reports no load failure for ${handle}`, async ({ page }) => {
+          /**
+           * Signs the administrator in to a site whose code was just deployed, as a
+           * release reaches a live site: the update check runs, and with it the
+           * migrations of the add-ons the site enables, which the seed doesn't run.
+           */
+          async function signInAfterDeploy(page) {
               reseed(['--unverified'])
-
               await signIn(page, 'administrator')
-
               await expect(page.getByRole('heading', { name: 'CMS update check' })).toBeVisible()
+          }
+
+          test(`the update check reports no load failure for ${handle}`, async ({ page }) => {
+              await signInAfterDeploy(page)
+
               await expect(page.getByText(`Extension ${handle} could not load`)).toHaveCount(0)
           })
 
           test(`Site Settings › Extensions shows ${handle} enabled and healthy`, async ({ page }) => {
-              await signIn(page, 'administrator')
+              await signInAfterDeploy(page)
               await page.goto(EXTENSIONS)
 
               const row = page.locator(`[data-extension="${handle}"]`)
@@ -771,7 +779,7 @@ jobs:
 
           for (const path of pages) {
               test(`${path} renders for the administrator`, async ({ page }) => {
-                  await signIn(page, 'administrator')
+                  await signInAfterDeploy(page)
 
                   const response = await page.goto(path)
 
