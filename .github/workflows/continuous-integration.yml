@@ -179,7 +179,7 @@ on:
         description: "Private key loaded into ssh-agent before composer runs, for dependencies Composer clones over SSH (e.g. a private VCS repository). Use a read-only deploy key on the dependency's repository."
         required: false
       AUTODEV_APP_PRIVATE_KEY:
-        description: "Private key of the contenir-autodev GitHub App, whose ID is the AUTODEV_APP_ID variable. The boot-cms job uses it for a token that reads the private CMS repository. Org secret in contenir and contenir-extension."
+        description: "Private key of the contenir-autodev GitHub App, whose ID is the AUTODEV_APP_ID variable. The boot-cms job uses it for a token that reads the private CMS repository. Org secret in contenir and contenir-extension. Callers outside the contenir org pass it by name: secrets: inherit does not cross organisations."
         required: false
 
 jobs:
@@ -574,7 +574,7 @@ jobs:
           HAS_KEY: ${{ secrets.AUTODEV_APP_PRIVATE_KEY != '' }}
         run: |
           if [ -z "$APP_ID" ] || [ "$HAS_KEY" != "true" ]; then
-            echo "::error::boot-cms reads the private CMS repository through the contenir-autodev app: set the AUTODEV_APP_ID variable and AUTODEV_APP_PRIVATE_KEY secret, and call this workflow with secrets: inherit."
+            echo "::error::boot-cms reads the private CMS repository through the contenir-autodev app: set the AUTODEV_APP_ID variable and pass the AUTODEV_APP_PRIVATE_KEY secret. From outside the contenir org, pass it by name (secrets: AUTODEV_APP_PRIVATE_KEY: ...): secrets: inherit does not cross organisations."
             exit 1
           fi
 

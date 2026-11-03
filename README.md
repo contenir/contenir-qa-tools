@@ -185,9 +185,12 @@ jobs:
 
 A Contenir add-on also turns on `boot-cms`, which installs it into the CMS's
 current release and checks the end-to-end site boots with it enabled. List the
-admin screens it adds:
+admin screens it adds, and pass the app key by name (`secrets: inherit` doesn't cross
+from the `contenir-extension` org to this one):
 
 ```yaml
+    secrets:
+      AUTODEV_APP_PRIVATE_KEY: ${{ secrets.AUTODEV_APP_PRIVATE_KEY }}
     with:
       boot-cms: true
       boot-cms-pages: '["/admin/settings/common/index/category/seo/section/seo"]'

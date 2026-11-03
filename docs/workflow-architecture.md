@@ -195,7 +195,8 @@ inside the real legacy CMS, as the extensions plan's section 12 asks.
 
 1. Mints a token from the `contenir-autodev` app (`AUTODEV_APP_ID` variable,
    `AUTODEV_APP_PRIVATE_KEY` secret, both org-wide in `contenir-extension`)
-   that reads `contenir/contenir-cms-legacy`, which is private.
+   that reads `contenir/contenir-cms-legacy`, which is private. Add-ons pass
+   the key by name, since `secrets: inherit` doesn't cross organisations.
 2. Checks out the CMS at `boot-cms-ref`, or at the highest `vX.Y.Z` tag when
    that's empty. GitHub's "latest release" isn't used: not every tag gets one.
 3. Installs the add-on from this checkout: a Composer path repository at
@@ -250,7 +251,9 @@ Because `CODECOV_TOKEN` is org-scoped and `INFECTION_DASHBOARD_API_KEY` and
 reusable workflow with `secrets: inherit` rather than an explicit per-secret
 mapping — it transparently pulls from whichever scope actually defines each
 secret. Cross-repo `secrets: inherit` works for reusable workflows called
-within the same GitHub org.
+within the same GitHub org, but not across organisations: a caller in
+`contenir-extension` gets the `contenir` workflow's variables but none of its
+secrets, so add-ons pass the ones they need by name.
 
 ## Inputs
 
