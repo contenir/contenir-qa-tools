@@ -148,6 +148,26 @@ on:
         type: boolean
         required: false
         default: false
+      boot-cms:
+        description: "Run the boot-cms job, for Contenir add-ons: install this repository's add-on into the CMS's latest release, enable it on the CMS's end-to-end site and check the site boots with it (sign-in page, update check, Site Settings > Extensions, and the boot-cms-pages). Needs the contenir-autodev app (the AUTODEV_APP_ID variable and AUTODEV_APP_PRIVATE_KEY secret) to read the private CMS repository."
+        type: boolean
+        required: false
+        default: false
+      boot-cms-ref:
+        description: "CMS tag or branch the boot-cms job checks out. Empty = the highest vX.Y.Z tag, which is the current release."
+        type: string
+        required: false
+        default: ""
+      boot-cms-pages:
+        description: "JSON array of admin paths the add-on contributes (its settings sections or module screens), e.g. '[\"/admin/settings/common/index/category/seo/section/seo\"]'. The boot-cms job opens each as the end-to-end site's administrator and expects a 200 with a heading and no uncaught script error."
+        type: string
+        required: false
+        default: "[]"
+      boot-cms-php-version:
+        description: "PHP version the boot-cms job runs the CMS under."
+        type: string
+        required: false
+        default: "8.3"
     secrets:
       CODECOV_TOKEN:
         description: "Codecov upload token. An org-wide token works because the upload passes the calling repository as the slug."
@@ -157,6 +177,9 @@ on:
         required: false
       SSH_PRIVATE_KEY:
         description: "Private key loaded into ssh-agent before composer runs, for dependencies Composer clones over SSH (e.g. a private VCS repository). Use a read-only deploy key on the dependency's repository."
+        required: false
+      AUTODEV_APP_PRIVATE_KEY:
+        description: "Private key of the contenir-autodev GitHub App, whose ID is the AUTODEV_APP_ID variable. The boot-cms job uses it for a token that reads the private CMS repository. Org secret in contenir and contenir-extension."
         required: false
 
 jobs:
@@ -521,3 +544,270 @@ jobs:
             args+=(--git-diff-lines "--git-diff-base=origin/$BASE_REF" --ignore-msi-with-no-mutations)
           fi
           composer ${{ inputs.mutation-test-script }} -- "${args[@]}"
+
+  boot-cms:
+    name: "Boot the CMS with the add-on"
+    if: inputs.boot-cms
+    runs-on: ubuntu-24.04
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ppassword --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      CMS_REPOSITORY: contenir/contenir-cms-legacy
+      E2E_DB_HOST: 127.0.0.1
+      E2E_DB_PORT: "3306"
+      E2E_DB_USERNAME: root
+      E2E_DB_PASSWORD: password
+    steps:
+      - name: Check the app credentials are there
+        env:
+          APP_ID: ${{ vars.AUTODEV_APP_ID }}
+          HAS_KEY: ${{ secrets.AUTODEV_APP_PRIVATE_KEY != '' }}
+        run: |
+          if [ -z "$APP_ID" ] || [ "$HAS_KEY" != "true" ]; then
+            echo "::error::boot-cms reads the private CMS repository through the contenir-autodev app: set the AUTODEV_APP_ID variable and AUTODEV_APP_PRIVATE_KEY secret, and call this workflow with secrets: inherit."
+            exit 1
+          fi
+
+      - name: Get a token that reads the CMS
+        id: app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.AUTODEV_APP_ID }}
+          private-key: ${{ secrets.AUTODEV_APP_PRIVATE_KEY }}
+          owner: contenir
+          repositories: contenir-cms-legacy
+
+      # The current release is the highest vX.Y.Z tag. GitHub's "latest
+      # release" lags, because not every tag gets a Release.
+      - name: Pick the CMS release
+        id: cms
+        env:
+          TOKEN: ${{ steps.app.outputs.token }}
+          REF: ${{ inputs.boot-cms-ref }}
+        run: |
+          if [ -z "$REF" ]; then
+            REF=$(git ls-remote --tags --refs "https://x-access-token:${TOKEN}@github.com/${CMS_REPOSITORY}.git" 'v*' \
+              | sed 's#.*refs/tags/##' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+          fi
+          if [ -z "$REF" ]; then
+            echo "::error::No vX.Y.Z tag found on ${CMS_REPOSITORY}."
+            exit 1
+          fi
+          echo "Booting ${CMS_REPOSITORY} at ${REF}."
+          echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the add-on
+        uses: actions/checkout@v6
+        with:
+          path: addon
+
+      - name: Checkout the CMS
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.CMS_REPOSITORY }}
+          ref: ${{ steps.cms.outputs.ref }}
+          token: ${{ steps.app.outputs.token }}
+          path: cms
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ inputs.boot-cms-php-version }}
+          extensions: gd, imagick, pdo_mysql, pdo_sqlite, intl
+          coverage: none
+
+      - name: Read the add-on's package
+        id: addon
+        working-directory: addon
+        run: |
+          HANDLE=$(jq -r '.extra.contenir.handle // empty' composer.json)
+          if [ -z "$HANDLE" ]; then
+            echo "::error::composer.json has no extra.contenir.handle: boot-cms is for Contenir add-ons."
+            exit 1
+          fi
+          {
+            echo "package=$(jq -r .name composer.json)"
+            echo "handle=${HANDLE}"
+            echo "alias=$(jq -r '.extra["branch-alias"]["dev-main"] // empty' composer.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: boot-cms-composer-${{ hashFiles('cms/composer.lock', 'addon/composer.json') }}
+          restore-keys: boot-cms-composer-
+
+      # The CMS already requires most add-ons, so the pull request's copy
+      # replaces the locked one: a path repository at a fixed version, aliased
+      # to the add-on's branch alias so other constraints on it still hold.
+      # The add-on's own repositories come along, since Composer reads only the
+      # root package's. -W updates the add-on and what it needs; everything
+      # else stays at the release's lock.
+      - name: Install the add-on into the CMS
+        working-directory: cms
+        env:
+          PACKAGE: ${{ steps.addon.outputs.package }}
+          ALIAS: ${{ steps.addon.outputs.alias }}
+        run: |
+          i=0
+          jq -c '.repositories // [] | .[]' ../addon/composer.json | while read -r repository; do
+            i=$((i + 1))
+            composer config "repositories.addon-dependency-${i}" "$repository"
+          done
+          composer config repositories.addon \
+            "$(jq -nc --arg package "$PACKAGE" '{type: "path", url: "../addon", options: {symlink: false, versions: {($package): "dev-boot-cms"}}}')"
+          composer require "${PACKAGE}:dev-boot-cms${ALIAS:+ as ${ALIAS}}" -W --no-interaction --no-progress
+
+      - name: Check the manifest lists the add-on
+        working-directory: cms
+        env:
+          HANDLE: ${{ steps.addon.outputs.handle }}
+        run: |
+          php -r '
+            $handles = array_column(require "vendor/contenir/extensions.php", "handle");
+            if (! in_array($argv[1], $handles, true)) {
+                fwrite(STDERR, "::error::The extension manifest does not list {$argv[1]}: it lists " . implode(", ", $handles) . "\n");
+                exit(1);
+            }
+          ' "$HANDLE"
+
+      # extensions.global.php, not .local: the seed deletes the local file and
+      # every test reseeds.
+      - name: Enable the add-on on the end-to-end site
+        working-directory: cms
+        env:
+          HANDLE: ${{ steps.addon.outputs.handle }}
+        run: |
+          php -r '
+            $file = "tests/e2e/site/config/autoload/extensions.global.php";
+            $config = require $file;
+            $config["extensions"]["enabled"] = array_values(array_unique([...$config["extensions"]["enabled"] ?? [], $argv[1]]));
+            file_put_contents($file, "<?php\n\nreturn " . var_export($config, true) . ";\n");
+          ' "$HANDLE"
+          cat tests/e2e/site/config/autoload/extensions.global.php
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: cms/package-lock.json
+
+      - name: Install JS dependencies
+        working-directory: cms
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: cms
+        run: npx playwright install --with-deps chromium
+
+      # One spec beside the CMS's own, using its seed and sign-in helpers, run
+      # alone through the CMS's Playwright config with the server's errors
+      # kept in a file.
+      - name: Write the boot spec
+        working-directory: cms
+        run: |
+          cat > boot-cms.config.mjs <<'JS'
+          import base from './playwright.config.mjs'
+
+          export default {
+              ...base,
+              testMatch: 'boot-cms.spec.mjs',
+              webServer: { ...base.webServer, command: `${base.webServer.command} 2>> boot-cms-server.log` },
+          }
+          JS
+          cat > tests/e2e/specs/boot-cms.spec.mjs <<'JS'
+          import process from 'node:process'
+          import { expect, reseed, signIn, test } from '../support.mjs'
+
+          const handle = process.env.BOOT_CMS_HANDLE
+          const pages = JSON.parse(process.env.BOOT_CMS_PAGES || '[]')
+          const EXTENSIONS = '/admin/settings/extensions/index/category/system/section/extensions'
+
+          const errors = []
+          test.beforeEach(({ page }) => {
+              errors.length = 0
+              page.on('pageerror', error => errors.push(error.message))
+          })
+          test.afterEach(() => {
+              expect(errors, 'uncaught script errors on the page').toEqual([])
+          })
+
+          test('the sign-in page loads', async ({ page }) => {
+              const response = await page.goto('/admin/login')
+
+              expect(response?.status()).toBe(200)
+              await expect(page.getByLabel('Username')).toBeVisible()
+          })
+
+          test(`the update check reports no load failure for ${handle}`, async ({ page }) => {
+              reseed(['--unverified'])
+
+              await signIn(page, 'administrator')
+
+              await expect(page.getByRole('heading', { name: 'CMS update check' })).toBeVisible()
+              await expect(page.getByText(`Extension ${handle} could not load`)).toHaveCount(0)
+          })
+
+          test(`Site Settings › Extensions shows ${handle} enabled and healthy`, async ({ page }) => {
+              await signIn(page, 'administrator')
+              await page.goto(EXTENSIONS)
+
+              const row = page.locator(`[data-extension="${handle}"]`)
+              await expect(row.locator('[data-extension-state]')).toHaveText('Enabled')
+              await expect(row.locator('[data-extension-health]')).toHaveText('Healthy')
+          })
+
+          for (const path of pages) {
+              test(`${path} renders for the administrator`, async ({ page }) => {
+                  await signIn(page, 'administrator')
+
+                  const response = await page.goto(path)
+
+                  expect(response?.status()).toBe(200)
+                  await expect(page.locator('h1').first()).toBeVisible()
+              })
+          }
+          JS
+
+      - name: Boot the CMS and check the add-on
+        working-directory: cms
+        env:
+          BOOT_CMS_HANDLE: ${{ steps.addon.outputs.handle }}
+          BOOT_CMS_PAGES: ${{ inputs.boot-cms-pages }}
+        run: npx playwright test --config boot-cms.config.mjs
+
+      - name: Check the server logged no PHP errors from the add-on
+        if: success() || failure()
+        working-directory: cms
+        env:
+          PACKAGE: ${{ steps.addon.outputs.package }}
+        run: |
+          touch boot-cms-server.log
+          if grep -E 'PHP (Fatal error|Parse error|Warning|Notice|Deprecated)' boot-cms-server.log | grep -F "vendor/${PACKAGE}/"; then
+            echo "::error::The CMS logged PHP errors from ${PACKAGE} (above)."
+            exit 1
+          fi
+          echo "No PHP errors from ${PACKAGE}."
+
+      - name: Keep the report of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-cms-report
+          path: |
+            cms/playwright-report/
+            cms/test-results/
+            cms/boot-cms-server.log
+          retention-days: 7
