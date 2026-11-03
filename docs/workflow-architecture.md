@@ -25,10 +25,12 @@ graph LR
     mago[mago job]
     test[test job] --> codecov[codecov job]
     test --> infection[mutation-test job]
+    bootcms[boot-cms job]
 ```
 
 - `attributions`, `composer`, `mago` and `test` have **no `needs:`** between them —
   they're independent gates, none consumes another's output.
+- `boot-cms` (opt-in, add-ons only) has no `needs:` either.
 - `codecov` and `mutation-test` both **`needs: [test]`** — real dependencies
   (artifact consumption / gating), not just ordering preference.
 
@@ -186,6 +188,42 @@ Infection runs with `--git-diff-lines --git-diff-base=origin/<base branch>
 code passes. Push events still mutate everything, so the release branch keeps
 the full MSI gate and the Stryker badge.
 
+## `boot-cms` job
+
+Off unless `boot-cms: true`. For Contenir add-ons: it proves the add-on boots
+inside the real legacy CMS, as the extensions plan's section 12 asks.
+
+1. Mints a token from the `contenir-autodev` app (`AUTODEV_APP_ID` variable,
+   `AUTODEV_APP_PRIVATE_KEY` secret, both org-wide in `contenir-extension`)
+   that reads `contenir/contenir-cms-legacy`, which is private. Add-ons pass
+   the key by name, since `secrets: inherit` doesn't cross organisations.
+2. Checks out the CMS at `boot-cms-ref`, or at the highest `vX.Y.Z` tag when
+   that's empty. GitHub's "latest release" isn't used: not every tag gets one.
+3. Installs the add-on from this checkout: a Composer path repository at
+   version `dev-boot-cms`, aliased to the add-on's `dev-main` branch alias,
+   plus the add-on's own `repositories`. `composer require -W` moves only the
+   add-on and what it needs; the rest stays at the release's lock. The job
+   then checks `vendor/contenir/extensions.php` lists the add-on's handle
+   (`extra.contenir.handle`).
+4. Adds the handle to the e2e site's `extensions.global.php`. Not the
+   `.local` file: the seed deletes it, and every test reseeds.
+5. Runs one Playwright spec beside the CMS's own, with its seed and sign-in
+   helpers. Each signed-in test seeds the site as freshly deployed
+   (`--unverified`) and signs in the fixture administrator, so the update
+   check runs, and with it the enabled add-ons' migrations, as on a live
+   site after a release. The seed itself runs only the CMS's migrations.
+   - `/admin/login` loads;
+   - the update check shows no "Extension *handle* could not load";
+   - Site Settings > Extensions shows the add-on Enabled and Healthy;
+   - each `boot-cms-pages` path returns 200 with a heading;
+   - no test sees an uncaught script error.
+6. Fails if the `php -S` log has a PHP error from the add-on's vendor folder.
+
+A failed run keeps the Playwright report and server log as the
+`boot-cms-report` artifact. Expect three to four minutes, alongside the other
+jobs. Dependabot runs don't get org secrets, so the job fails on them unless
+`AUTODEV_APP_PRIVATE_KEY` is also a Dependabot secret.
+
 ## Applications
 
 The defaults suit a library. An application deploys its lock file, boots from
@@ -215,7 +253,9 @@ Because `CODECOV_TOKEN` is org-scoped and `INFECTION_DASHBOARD_API_KEY` and
 reusable workflow with `secrets: inherit` rather than an explicit per-secret
 mapping — it transparently pulls from whichever scope actually defines each
 secret. Cross-repo `secrets: inherit` works for reusable workflows called
-within the same GitHub org.
+within the same GitHub org, but not across organisations: a caller in
+`contenir-extension` gets the `contenir` workflow's variables but none of its
+secrets, so add-ons pass the ones they need by name.
 
 ## Inputs
 
@@ -249,10 +289,14 @@ within the same GitHub org.
 | `min-covered-msi` | Minimum covered-code MSI (%) required to pass `mutation-test` (default `"10"`). |
 | `infection-diff-on-pull-requests` | On `pull_request` events, mutate only the changed lines against the base branch (default `false`). Push events run the whole suite. |
 | `test-env-json` | JSON object of extra env vars exported (via `$GITHUB_ENV`) before running tests in `test` and `mutation-test`. |
+| `boot-cms` | Run the `boot-cms` job (default `false`). For add-ons. |
+| `boot-cms-ref` | CMS tag or branch to boot. Empty (default) = the highest `vX.Y.Z` tag. |
+| `boot-cms-pages` | JSON array of admin paths the add-on contributes, each opened as the administrator (default `[]`). |
+| `boot-cms-php-version` | PHP version the CMS runs under in `boot-cms` (default `"8.3"`). |
 | `apt-packages` | Space-separated Ubuntu packages `apt-get install`ed at the start of `test` and `mutation-test`, for tools the tests shell out to (e.g. `imagemagick`). Empty (default) skips the step. |
 
 Plus `secrets: CODECOV_TOKEN`, `INFECTION_DASHBOARD_API_KEY`,
-`SSH_PRIVATE_KEY` on `workflow_call` (all `required: false`).
+`SSH_PRIVATE_KEY`, `AUTODEV_APP_PRIVATE_KEY` on `workflow_call` (all `required: false`).
 
 ### Overriding a `phpunit.xml.dist` connection setting for CI
 

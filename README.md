@@ -123,11 +123,11 @@ Add the standard scripts to your `composer.json`:
 
 This repository ships a reusable CI workflow
 ([`.github/workflows/continuous-integration.yml`](.github/workflows/continuous-integration.yml))
-with six jobs: `attributions` (no AI attributions), `mago` (format/lint/analyze/guard,
+with seven jobs: `attributions` (no AI attributions), `mago` (format/lint/analyze/guard,
 optional Rector), `test` (unit + optional integration, across a
 `php x [lowest, locked, latest]` matrix), an optional `composer` job (validate/audit),
 and two downstream jobs, `codecov` and `mutation-test`, both gated on `test` succeeding
-and both on by default. A consuming library's entire CI file becomes:
+and both on by default, and an opt-in `boot-cms` job for add-ons. A consuming library's entire CI file becomes:
 
 ```yaml
 # .github/workflows/continuous-integration.yml
@@ -181,6 +181,19 @@ jobs:
       # Codecov and mutation testing are on by default. Remove this line once
       # the application runs Infection.
       enable-infection: false
+```
+
+A Contenir add-on also turns on `boot-cms`, which installs it into the CMS's
+current release and checks the end-to-end site boots with it enabled. List the
+admin screens it adds, and pass the app key by name (`secrets: inherit` doesn't cross
+from the `contenir-extension` org to this one):
+
+```yaml
+    secrets:
+      AUTODEV_APP_PRIVATE_KEY: ${{ secrets.AUTODEV_APP_PRIVATE_KEY }}
+    with:
+      boot-cms: true
+      boot-cms-pages: '["/admin/settings/common/index/category/seo/section/seo"]'
 ```
 
 #### Mago version
