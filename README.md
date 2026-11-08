@@ -125,7 +125,7 @@ This repository ships a reusable CI workflow
 ([`.github/workflows/continuous-integration.yml`](.github/workflows/continuous-integration.yml))
 with seven jobs: `attributions` (no AI attributions), `mago` (format/lint/analyze/guard,
 optional Rector), `test` (unit + optional integration, across a
-`php x [lowest, locked, latest]` matrix), an optional `composer` job (validate/audit),
+`php x [lowest, locked, latest]` matrix, where `php` is the first `php-versions` entry only unless `full-matrix: true` is passed, to keep a push's job count and CI minutes down), an optional `composer` job (validate/audit),
 and two downstream jobs, `codecov` and `mutation-test`, both gated on `test` succeeding
 and both on by default, and an opt-in `boot-cms` job for add-ons. A consuming library's entire CI file becomes:
 
