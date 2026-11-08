@@ -8,6 +8,11 @@ on:
         type: string
         required: false
         default: '["8.2", "8.3", "8.4", "8.5"]'
+      full-matrix:
+        description: "Run the mago and test jobs on every php-versions entry. Off by default: only the first entry runs, which keeps a push to one PHP version's worth of jobs. Turn it on for a release or a scheduled run."
+        type: boolean
+        required: false
+        default: false
       dependency-versions:
         description: "JSON array of dependency strategies for the test matrix: \"lowest\" (composer update --prefer-lowest), \"locked\" (composer install from composer.lock) and \"latest\" (composer update). Libraries keep all three; applications, which deploy their lock file, pass '[\"locked\"]'. Coverage and mutation testing run on the locked leg, so keep \"locked\" in the list when either is enabled."
         type: string
@@ -275,7 +280,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ${{ fromJSON(inputs.php-versions) }}
+        php: ${{ fromJSON(inputs.full-matrix && inputs.php-versions || format('["{0}"]', fromJSON(inputs.php-versions)[0])) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -327,7 +332,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ${{ fromJSON(inputs.php-versions) }}
+        php: ${{ fromJSON(inputs.full-matrix && inputs.php-versions || format('["{0}"]', fromJSON(inputs.php-versions)[0])) }}
         dependencies: ${{ fromJSON(inputs.dependency-versions) }}
     env:
       HAS_SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY != '' }}
