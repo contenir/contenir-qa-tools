@@ -8,6 +8,11 @@ on:
         type: string
         required: false
         default: '["8.2", "8.3", "8.4", "8.5"]'
+      code-changed:
+        description: "Whether the change can affect the code. Pass false (for example from a paths filter, for a pull request that touches only documentation) and the Mago and test jobs still report under their usual names, so required checks are satisfied, but skip their steps; Codecov and mutation testing are skipped. Defaults to true: everything runs."
+        type: boolean
+        required: false
+        default: true
       full-matrix:
         description: "Run the mago and test jobs on every php-versions entry. Off by default: only the first entry runs, which keeps a push to one PHP version's worth of jobs. Turn it on for a release or a scheduled run."
         type: boolean
@@ -282,10 +287,16 @@ jobs:
       matrix:
         php: ${{ fromJSON(inputs.full-matrix && inputs.php-versions || format('["{0}"]', fromJSON(inputs.php-versions)[0])) }}
     steps:
+      - name: No code changed
+        if: ${{ !inputs.code-changed }}
+        run: echo "Skipped, as the caller says nothing that can affect the code changed."
+
       - name: Checkout
+        if: inputs.code-changed
         uses: actions/checkout@v6
 
       - name: Set up PHP and Mago
+        if: inputs.code-changed
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
@@ -294,36 +305,39 @@ jobs:
           tools: mago:${{ inputs.mago-version }}
 
       - name: Load SSH key
-        if: env.HAS_SSH_KEY == 'true'
+        if: inputs.code-changed && (env.HAS_SSH_KEY == 'true')
         uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Install dependencies
+        if: inputs.code-changed
         run: composer install --no-interaction --no-progress ${{ inputs.composer-options }}
 
       # Overrides php-version from the consumer's mago.toml for each matrix leg
       # without mutating the committed config file.
       - name: Pin Mago PHP version
+        if: inputs.code-changed
         run: echo "MAGO_PHP_VERSION=${{ matrix.php }}" >> "$GITHUB_ENV"
 
       - name: Check formatting
+        if: inputs.code-changed
         run: mago format --check
 
       - name: Lint
-        if: success() || failure()
+        if: inputs.code-changed && (success() || failure())
         run: mago lint
 
       - name: Analyze
-        if: success() || failure()
+        if: inputs.code-changed && (success() || failure())
         run: mago analyze
 
       - name: Guard
-        if: (success() || failure()) && inputs.mago-guard
+        if: inputs.code-changed && ((success() || failure()) && inputs.mago-guard)
         run: mago guard
 
       - name: Rector
-        if: (success() || failure()) && inputs.enable-rector
+        if: inputs.code-changed && ((success() || failure()) && inputs.enable-rector)
         run: vendor/bin/rector process --dry-run --no-progress-bar
 
   test:
@@ -339,10 +353,16 @@ jobs:
       # Coverage is collected on one leg only, and only when something consumes it.
       COVERAGE_LEG: ${{ (inputs.enable-codecov || inputs.enable-infection) && matrix.php == (inputs.coverage-php-version || fromJSON(inputs.php-versions)[0]) && matrix.dependencies == 'locked' }}
     steps:
+      - name: No code changed
+        if: ${{ !inputs.code-changed }}
+        run: echo "Skipped, as the caller says nothing that can affect the code changed."
+
       - name: Checkout
+        if: inputs.code-changed
         uses: actions/checkout@v6
 
       - name: Set up PHP
+        if: inputs.code-changed
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
@@ -352,7 +372,7 @@ jobs:
       # System tools the tests shell out to (e.g. ImageMagick's CLI). Passed
       # through an env var and word-split, never interpolated into the script.
       - name: Install system packages
-        if: inputs.apt-packages != ''
+        if: inputs.code-changed && (inputs.apt-packages != '')
         env:
           APT_PACKAGES: ${{ inputs.apt-packages }}
         run: |
@@ -366,7 +386,7 @@ jobs:
       # mssql, ...). Repos with no DB simply omit `db-image` (default ""),
       # so both steps below are skipped at zero cost.
       - name: Start DB service
-        if: inputs.db-image != ''
+        if: inputs.code-changed && (inputs.db-image != '')
         run: |
           docker run -d --name db \
             -p ${{ inputs.db-port }}:${{ inputs.db-port }} \
@@ -374,7 +394,7 @@ jobs:
             ${{ inputs.db-image }}
 
       - name: Wait for DB to be healthy
-        if: inputs.db-image != ''
+        if: inputs.code-changed && (inputs.db-image != '')
         run: |
           for i in $(seq 1 ${{ inputs.db-health-retries }}); do
             docker exec db ${{ inputs.db-health-cmd }} && exit 0
@@ -385,13 +405,13 @@ jobs:
       # Written before composer runs, since an application's install scripts
       # may already boot it. Passed through an env var, never interpolated.
       - name: Write .env
-        if: inputs.dotenv != ''
+        if: inputs.code-changed && (inputs.dotenv != '')
         env:
           DOTENV: ${{ inputs.dotenv }}
         run: printf '%s\n' "$DOTENV" > .env
 
       - name: Load SSH key
-        if: env.HAS_SSH_KEY == 'true'
+        if: inputs.code-changed && (env.HAS_SSH_KEY == 'true')
         uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -399,15 +419,15 @@ jobs:
       # Resolve dependencies at the configured strategy level.
       # "locked" uses the committed composer.lock as-is.
       - name: Install dependencies (lowest)
-        if: matrix.dependencies == 'lowest'
+        if: inputs.code-changed && (matrix.dependencies == 'lowest')
         run: composer update --prefer-lowest --no-interaction --no-progress ${{ inputs.composer-options }}
 
       - name: Install dependencies (locked)
-        if: matrix.dependencies == 'locked'
+        if: inputs.code-changed && (matrix.dependencies == 'locked')
         run: composer install --no-interaction --no-progress ${{ inputs.composer-options }}
 
       - name: Install dependencies (latest)
-        if: matrix.dependencies == 'latest'
+        if: inputs.code-changed && (matrix.dependencies == 'latest')
         run: composer update --no-interaction --no-progress ${{ inputs.composer-options }}
 
       # PHPUnit's <env> in phpunit.xml.dist won't override an already-set real
@@ -415,23 +435,23 @@ jobs:
       # setting for CI (e.g. DB hostname) without touching that file, which may
       # need a different value for local dev (e.g. Docker Compose networking).
       - name: Export test environment overrides
-        if: inputs.test-env-json != '{}'
+        if: inputs.code-changed && (inputs.test-env-json != '{}')
         run: echo '${{ inputs.test-env-json }}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
 
       - name: Unit tests
-        if: env.COVERAGE_LEG != 'true'
+        if: inputs.code-changed && (env.COVERAGE_LEG != 'true')
         run: composer ${{ inputs.test-script }}
 
       - name: Unit tests with coverage
-        if: env.COVERAGE_LEG == 'true'
+        if: inputs.code-changed && (env.COVERAGE_LEG == 'true')
         run: composer ${{ inputs.test-coverage-script }}
 
       - name: Integration tests
-        if: inputs.run-integration
+        if: inputs.code-changed && (inputs.run-integration)
         run: composer ${{ inputs.integration-test-script }}
 
       - name: Upload coverage artifact
-        if: env.COVERAGE_LEG == 'true'
+        if: inputs.code-changed && (env.COVERAGE_LEG == 'true')
         uses: actions/upload-artifact@v4
         with:
           name: coverage-clover
@@ -440,7 +460,7 @@ jobs:
   codecov:
     name: "Codecov"
     needs: [test]
-    if: inputs.enable-codecov
+    if: inputs.enable-codecov && inputs.code-changed
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -467,7 +487,7 @@ jobs:
   mutation-test:
     name: "Mutation testing"
     needs: [test]
-    if: inputs.enable-infection
+    if: inputs.enable-infection && inputs.code-changed
     runs-on: ubuntu-24.04
     env:
       HAS_SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY != '' }}

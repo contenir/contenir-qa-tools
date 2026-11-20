@@ -24,6 +24,12 @@ reusable CI workflow carries Contenir-specific changes:
 - **Diff-only mutation testing on pull requests** — `infection-diff-on-pull-requests: true`
   mutates only the lines a pull request changes; pushes to release branches still mutate
   everything.
+- **`code-changed` input** — pass `false` for a change that can't affect the code, such as
+  a pull request touching only Markdown or `docs/`, worked out by the caller's own paths
+  filter. The Mago and test jobs still run and report under their usual names, so required
+  checks are satisfied, but skip every step; Codecov and mutation testing are skipped.
+  Defaults to `true`. Codecov posts no `codecov/patch` status without an upload, so a
+  repository that requires that check has to stop requiring it, or keep this `true`.
 
 Upstream changes are merged in from the `upstream` remote:
 
